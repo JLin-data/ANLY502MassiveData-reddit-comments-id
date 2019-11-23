@@ -1,190 +1,144 @@
+# Assignment - Hadoop Streaming
 
-# ANLY502 - Massive Data Analytics Big Data Project: Predicting the most popular review in Reddit
---------------------------------------
+You will be performing Hadoop Streaming exercises in this assignment. 
 
-Author: Jingjing Lin
+1. Start an Amazon Elastic MapReduce (EMR) Cluster using Quickstart as described in the [Hadoop Streaming Lab](https://github.com/bigdatateaching/lab-hadoop-streaming), but choose 5 nodes (1 master and 4 core). 
+2. `ssh` to the **Master Node** of your cluster using _ssh agent forwarding_ as described in the [setup lab](https://github.com/bigdatateaching/lab-setting-up). 
+3. Once you connect to the Master Node, install git: 
 
-Email: jl2445@georgetown.edu
+	```
+	$ sudo yum install -y git
+	```
+4. Configure git (this needs to be done every time you install git on a new resource)
 
+	```
+	$ git config --global user.name "your-github-username"
+	$ git config --global user.email "your-gu-email"
+	```
+	
+5. Clone this repository to your Master Node
 
+	```
+	$ git clone ...
+	```
+	
+6. Change directory into the repository
+7. Do you work. Remember, all files must be within the repository directory otherwise git will not see them.
 
-## INTRODUCTION
+* Remember to commit and push back to GitHub as you are doing your work. **If you terminate the cluster and you did not push to GitHub, you will lose all your work.**
+* **Also, remember that data in the cluster's HDFS will be lost when the cluster terminates. If you want to keep data, store it in S3.**
 
-For social media like Reddit, "stickied" review -- the most popular review at the top of review sections, has the most number of view counts, which not shows wits of author's but also brings traffic even profits for authors. This project aims to use some features of review including the length of review, the controversiality, etc. to predict whether this review is stickied or not. To some extent, this small model can potentially help reviewers identify some features of the most popular review.
 
+## Provide the Master Node and Cluster Metadata
 
+Once you are ssh'd into the master node, query the instance metadat and write to a file:
 
+```
+curl http://169.254.169.254/latest/dynamic/instance-identity/document/ > instance-metadata.json
+```
 
-## CODE DEVELOPMENT
-As we could see from the MiniProject scripts, there are four main parts in the code.
+Also, since you are using a cluster, please provide some metadata files about your cluster. Run the following commands:
 
-### #1, Environment setting up
-- This part including the pyspark setting up and loading data through S3.
+```
+cat /mnt/var/lib/info/instance.json > master-instance.json
+cat /mnt/var/lib/info/extraInstanceData.json > extra-master-instance.json
+```
 
-- Functions and packages such as "findspark.init()" and "from pyspark import SparkContext" have been applied to the basic environment set up.
+## Problem 1 - The _quazyilx_ scientific instrument (3 points)
 
-- "spark.read.json" has been applied to read JSON file (raw data).
+For this problem, you will be working with data from the _quazyilx_ instrument. The files you will use contain hypothetic measurements of a scientific instrument called a _quazyilx_ that has been specially created for this class. Every few seconds the quazyilx makes four measurements: _fnard_, _fnok_, _cark_ and _gnuck_. The output looks like this:
 
-- m4.xlarge with 1 master nodes and 10 nodes, one time running over 3 hours if you wanna rerun the results, mostly in model fitting part.
+    YYYY-MM-DDTHH:MM:SSZ fnard:10 fnok:4 cark:2 gnuck:9
 
-### #2, Exploratory Data Analysis (EDA)
+(This time format is called [ISO-8601](https://en.wikipedia.org/wiki/ISO_8601) and it has the advantage that it is both unambiguous and that it sorts properly. The Z stands for _Greenwich Mean Time_ or GMT, and is sometimes called _Zulu Time_ because the [NATO Phonetic Alphabet](https://en.wikipedia.org/wiki/NATO_phonetic_alphabet) word for **Z** is _Zulu_.)
 
-#### Methdology 1: Coding Exploratory (Table)
+When one of the measurements is not present, the result is displayed as negative 1 (e.g. `-1`). 
 
-- "Have a look"
+The quazyilx has been malfunctioning, and occasionally generates output with a `-1` for all four measurements, like this:
 
-Before starting topic-making or other further exploratory analysis, I applied to use "describe()" "show()" and "printSchema()" to generate an overview of datasets. This dataset contains 40 columns and 1 million rows.
+    2015-12-10T08:40:10Z fnard:-1 fnok:-1 cark:-1 gnuck:-1
 
-- "Data cleaning"
+There are four different versions of the _quazyilx_ file, each of a different size. As you can see in the output below the file sizes are 50MB (1,000,000 rows), 4.8GB (100,000,000 rows), 18GB (369,865,098 rows) and 36.7GB (752,981,134 rows). The only difference is the length of the number of records, the file structure is the same. 
 
-Since either column with zero NA values or with a very large number of NA values, I chose to remove columns with NA values by using "is null()" and "drop()", as well as remove NA and FALSE rows in "archived".
+```
+[hadoop@ip-172-31-1-240 ~]$ hadoop fs -ls s3://bigdatateaching/quazyilx/
+Found 4 items
+-rw-rw-rw-   1 hadoop hadoop    52443735 2018-01-25 15:37 s3://bigdatateaching/quazyilx/quazyilx0.txt
+-rw-rw-rw-   1 hadoop hadoop  5244417004 2018-01-25 15:37 s3://bigdatateaching/quazyilx/quazyilx1.txt
+-rw-rw-rw-   1 hadoop hadoop 19397230888 2018-01-25 15:38 s3://bigdatateaching/quazyilx/quazyilx2.txt
+-rw-rw-rw-   1 hadoop hadoop 39489364082 2018-01-25 15:41 s3://bigdatateaching/quazyilx/quazyilx3.txt
+```
 
-- "Further exploratory"
+Your job is to find all of the times where the four instruments malfunctioned together using `grep` with Hadoop Streaming. 
 
-"distinct().count()" has been applied for looking the number of distinctive value for each column. Through this aggregation function, which allowed me to get the binary classifications or multiple classifications for each column by using groupby(), crosstab(), especially for the numerical columns like "controversiality" and "stickied".
+You will run a Hadoop Streaming job using the 18GB fil as input.
 
-The frequency in the stickied column is (false|218381|) and (true|  761|), based on this, I came up the idea of the topic: to predict the stickied label in each review.
+Here are the requirements for this Hadoop Streaming job:
 
-#### Methdology 2: Visualization (Graph)
+* The *mapper* is the `grep` function. 
+* It is a map only job and must be run as such. (Think about why this is a map only job.)
 
-For the numerical columns, visualization is a great method to access the distribution of datasets.
-The histogram has been used for checking numerical columns with statistical meaning, for example, the "retrieved_on" column has been excluded because it is the user id.
-"Score" column has been taken into consideration for feature engineering since it is the only one column with the varied distribution.
+You need to issue the command to submit the job with the appropriate parameters. [The reference for Hadoop Streaming commands is here.](https://hadoop.apache.org/docs/r2.7.3/hadoop-streaming/HadoopStreaming.html).
 
--------------------------------
+Paste the command you issued into a text file called `hadoop-streaming-command.txt`.  
 
-### #3, Feature Engineering
+Once the Hadoop Streaming job finishes, create a text file called `quazyilx-failures.txt` with the results which **must be sorted by date and time.**
 
-There are two features added.
+The files to be committed to the repository for this problem are `hadoop-streaming-command.txt` and `quazyilx-failures.txt`.
 
-#### 1 New column "score_class" 
+## Problem 2 - Log file analysis (7 points)
 
-Since the most number of values are centralized between 0 to 20, and the distribution of score are scattered, it is sensitive to classify score column. The baseline I applied here is the score value below 0 or above 0.
+The file `s3://bigdatateaching/forensicswiki/2012_logs.txt` is a year's worth of Apache logs for the [forensicswiki website](http://forensicswiki.org/wiki/Main_Page). Each line of the log file correspondents to a single `HTTP GET` command sent to the web server. The log file is in the [Combined Log Format](https://httpd.apache.org/docs/1.3/logs.html#combined).
 
-#### 2 New column "body_length" 
+Your goal in this problem is to report the number of hits for each month. Your final job output should look like this:
 
-A new feature included: the number of words in each review might be a factor.
-I have used < reddit = reddit.withColumn("body_length", length("body")) >to add the new column.
+    2010-01,xxxxxx
+    2010-02,yyyyyy
+    ...
 
+Where `xxxxxx` and `yyyyyy` are replaced by the actual number of hits in each month.
 
----------------
-### #4, Hypothesis
+You need to write a Python `mapper.py` and `reducer.py` with the following requirements:
 
- - Hypothesis generating through EDA
+* You must use regular expressions to parse the logs and extract the date, and cannot hard code any date logic 
+* Your mapper should read each line of the input file and output a key/value pair **tab separated format**
+* Your reducer should tally up the number of hits for each key and output the results in a **comma separated format**
 
-After having an overview of data structures, the meaning of each column and distribution, to predict if a review has a stickied label is an appealing aspect. In the end, I choose 1) "controversiality" -- related having a high number of upvotes and downvotes. Indicated the community having a mixed reaction to the comment, 2) "score classification" -- presenting the overall score of comments judged by Reddit rating, 3) "subreddit" -- the theme of review,  4) "body_lengh" -- identifies the length of review, those five features. In my opinion, they are connected in a certain way, for example, the one with controversiality label may not in the stickied place. 
+You need to run the Hadoop Streaming job with the appropriate parameters.
 
-Therefore I have model those factors into a logistical regression model then use test data and cross-validation two methods to access the performance of the model and find the best parameters and its coefficients in this model predicting.
+Once the Hadoop Streaming job finishes, create a text file called `logfile-counts.csv` with the results which **must be sorted by date.**
 
+The files to be committed to the repository for this problem are `mapper.py`, `reducer.py` and `logfile-counts.csv`.
 
 
- - Datasets preparation 
- 
-I have tried two ways to decide on what kind of subsets this hypothesis needs.
+## Submitting the Assignment
 
-  1. Datasets subsets: There are 476259744 rows in the 4-month datasets. Based on the similar distribution of "score" (see in(35) and in(40) in ipynb file), I took the sample set of 20% data (around 100 million) with the seed set to 329, keep all archived value columns.
+Make sure you commit **only the files requested**, and push your repository to GitHub!
 
-  2. Filter dataset with True in the archived column -- makes sure this question is no longer changed. The stickied label may change for the review if the questions on Reddit is still available to add a new answer.
-  
-  In the end, I choose the #2 even though the volume of available datasets are much smaller. In my opinion, it is not reasonable to just force to keep the large datasets because it is a massive datasets project, without considering the goal of this project and the model. In real-world work, it is possible to handle massive datasets into small pieces by certain conditions. Hence, for supporting my model and theory behind this, I used the "filter" function to get meaningful data (210,000) instead of using the sample datasets.
+The files to be committed to the repository for this assignment are:
 
-------------------------------
-### #5, Model
+* `instance-metadata.json`
+* `master-instance.json`
+* `extra-master-instance.json`
+* `hadoop-streaming-command.txt`
+* `quazyilx-failures.txt`
+* `mapper.py`
+* `reducer.py`
+* `logfile-counts.csv`
 
-#### New dataframe
-After preprocessing datasets (including feature engineering), I created a new dataframe only contains 5 columns (4 parameters + 1 label) will be used in the model.
 
-The clean_reddit.printSchema() shows following
+## Grading Rubric
 
----------------------------
+-   We will look at the results files and/or scripts. If the result files are exactly what is expected, in the proper format, etc., we may run your scripts to make sure they produce the output. If everything works, you will get full credit for the problem.
+-   If the submitted results are not what is expected, we will look at and run your code and provide partial credit wherever possible and applicable.
+-   Points **will** be deducted for each the following reasons:
+    -   Instructions are not followed
+    -   Output is not in expected format (not sorted, missing fields, wrong delimiter, unusual characters in the files, etc.)
+    -   There are more files in your repository than need to be
+    -   There are additional lines in the results files (whether empty or not)
+    -   Files in repository are not the requested filename
+    -   Homework is late (unless you are using a late day and provide notice in advance)
 
- (1) controversiality: string (nullable = true)
- 
- (2) score_class: string (nullable = false)
- 
- (3) subreddit: string (nullable = true)
- 
- (4) body_length: integer (nullable = true)
- 
- (5) stickied: string (nullable = true)
- 
------------------------------
 
 
-#### Build pipeline model
-
-1. Preparation
-StringIndexer all categorical columns
-OneHotEncoder all categorical index columns
-VectorAssembler all feature columns into one vector column
-
- - Adding non-numeric data with indexer (Build StringIndexer stages)
- - Encodering all indexed columns (Build OneHotEncoder stages)
- - Vectorizing columns as feature (Build VectorAssembler stage)
- 
-2. Pipeline model
-
-##### Pipeline fitting Method 1: 
-- pipeline.fit()
-- fit in with features and lables
-  - final_columns = feature_columns + ['features', 'label']
-
-##### Split Training and Test data 
-
-Using random seed to split datasets into 70% training (48561158) and 30% test data (20805289), then fitted training datasets into the logistic model and make validation with test data.
-
-Making the ROC Curve based on the logistic regression model.
-
-##### Extra: Build cross-validation model
-
- - Parameter grid 
- - Building different parameter models
- - Making BinaryClassificationEvaluator
- - Fitting the Cross-validation model by training and validating the model with test data
- - Find Intercept and coefficients of the regression model using "bestmodel" function
- - Choosing Best parameters from the best model
-
-##### PS: EXTRA Pipeline fitting Method:
-combined all factors(categorials+ numericals)
-
-
-## Results and Discussion
-The logistical regression is 
-
-In sample test set:
-
-[ - Training set ROC: 0.9818533387934892
- - Test_SET (Area Under ROC): 0.9418670005002574 ]
-
-In all datasets:
-
-[  - Training set ROC: 0.9989146361911969
-- Test_SET (Area Under ROC): 0.9534092467247536]
-
-
-The Intercept: -5.309090585400705
-coefficients: [ 0.08421218  0.18999762 -0.11647764 -0.13277351  0.15321921]
-
-The best RegParam is:  0.0 
-The best ElasticNetParam is: cv_model.bestModel._java_obj.getElasticNetParam()
-
--------------------
-  
-Result shows  that the logistic model performs well on predicting label "stickied", it accounts for 95% Area under ROC for test data. However, obviously, there is a slightly overfitting problem since a higher error rate in test datasets. The reason for the overfitting problem is highly likely in "subreddit" because there are 22871 different values in it. Therefore, this part will be future work if we want to solve this overfitting problem.
-In the linear regression model for cross-validation, the best parameter is 0.0 among regParam, [0, 1, 2] and elasticNetParam, [0, 0.5] different parameter combinations. The Intercept and coefficients are -5.3 and  [ 0.08421218  0.18999762 -0.11647764 -0.13277351  0.15321921] respectively.
-
-
-
-
-## Conlusion and Future work
-
-
-Apart from the slightly overfitting problem, the project is still a heavy time-consuming work. That is because the "subreddit" contains 22871 different values and the 'body-length" is numerical instead of as a string label, even though only 210,000 rows are fitted into the model. It takes around 30 minutes to make the pipeline and built ROC, and hours to run the cross-validation model and prediction.
-
-The technique used for textual analysis and prediction has evolved a long way from pure statistical methods, such as linear regression, logistic regression, towards advanced machine learning models, such as neural networks, which are regarded as the principal method of many Natural Language Processing research. Another idea for future work is using "tokenize" function for comments texts, such as vectorizing tf-idf or setting part of speech labels frequency matrix, instead of using the whole subreddit label. It might identify the stickied label and make the model more general without the overfitting problem. 
-
-
-
-
-
-
+	

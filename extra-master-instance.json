@@ -1,0 +1,80 @@
+{
+  "masterHost": "localhost",
+  "systemActions": [],
+  "startupScripts": [],
+  "hadoopEnv": {},
+  "jobFlowId": "j-2BJ7HBFZ1Y4US",
+  "jobFlowCreationInstant": 1550526128212,
+  "instanceCount": 5,
+  "masterInstanceType": "m4.large",
+  "instanceGroups": {
+    "CORE": [
+      {
+        "instanceType": "m4.large",
+        "instanceCount": 4
+      }
+    ],
+    "MASTER": [
+      {
+        "instanceType": "m4.large",
+        "instanceCount": 1
+      }
+    ]
+  },
+  "slaveInstanceType": "m4.large",
+  "supportedProducts": [],
+  "runJobTracker": false,
+  "runTaskTracker": false,
+  "runNameNode": true,
+  "runDataNode": false,
+  "runResourceManager": true,
+  "runNodeManager": false,
+  "instanceGroupId": "ig-24BRIRFCD9SFL",
+  "instanceRole": "master",
+  "marketType": "on_demand",
+  "instanceGroupInstanceType": "m4.large",
+  "hasIAMInstanceProfile": true,
+  "hadoopVersion": "Hadoop_2_8_3",
+  "region": "us-east-1",
+  "regionSet": "aws",
+  "deleteSteps": false,
+  "debuggingInfo": {
+    "sdbDisabled": false,
+    "sqsEnabled": true,
+    "sqsQueueName": "AWS-ElasticMapReduce-j-2BJ7HBFZ1Y4US",
+    "stepFailureAnalysisEnabled": true,
+    "emrLogAnalyticsEnabled": true,
+    "frequencyOfUpload": 120
+  },
+  "accountId": "816116045691",
+  "releaseLabel": "emr-5.21.0",
+  "serviceEndpoints": {
+    "RDS": "rds.us-east-1.amazonaws.com",
+    "S3_DEFAULT": "s3.amazonaws.com",
+    "S3_LOCAL": "s3.amazonaws.com",
+    "SWF": "swf.us-east-1.amazonaws.com",
+    "DYNAMODB": "dynamodb.us-east-1.amazonaws.com",
+    "MONITORING_READ": "http://monitor-api.amazon.com",
+    "MONITORING": "http://monitor-api.amazon.com",
+    "SIMPLEDB": "sdb.amazonaws.com",
+    "DNS": "dns-manage.amazon.com",
+    "EMR": "elasticmapreduce.us-east-1.amazonaws.com",
+    "CLOUDWATCH": "monitoring.us-east-1.amazonaws.com",
+    "KMS": "kms.us-east-1.amazonaws.com",
+    "EDP": "datapipeline.us-east-1.amazonaws.com",
+    "STS": "sts.us-east-1.amazonaws.com",
+    "IAM": "iam.amazonaws.com",
+    "SQS": "sqs.us-east-1.amazonaws.com",
+    "EC2": "ec2.us-east-1.amazonaws.com",
+    "SIM": "https://maxis-service-prod-iad.amazon.com",
+    "EC2_INTERNAL": "ec2-internal-IAD.amazon.com",
+    "FLUXO": "ticket-api.amazon.com",
+    "KINESIS": "kinesis.us-east-1.amazonaws.com",
+    "AEGIR": "https://aegir-us-east-1.amazon.com",
+    "REDSHIFT": "redshift.us-east-1.amazonaws.com",
+    "ANYSCALE": "autoscaling.us-east-1.amazonaws.com"
+  },
+  "numCandidates": 1,
+  "haEnabled": false,
+  "candidates": []
+}

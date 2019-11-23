@@ -1,0 +1,10 @@
+$ hadoop jar /usr/lib/hadoop/hadoop-streaming.jar \
+> -D mapreduce.job.reduces=0 \
+> -D stream.non.zero.exit.is.failure=false \
+> -input s3://bigdatateaching/quazyilx/quazyilx2.txt \
+> -output tempfolder \
+> -mapper "/bin/grep \"fnard:-1 fnok:-1 cark:-1 gnuck:-1\""
+
+
+######after mappings########
+hdfs dfs -cat tempfolder/* | sort >quazyilx-failures.txt
